@@ -33,10 +33,11 @@
 set -e
 set -x
 
-virtualenv -p python3 .
+
+python3 -m virtualenv .
+
 source ./bin/activate
 
 pip install -r requirements.txt
 
-# Run unit tests
-find . -name "*_test.py" | xargs python -m unittest
+python -m unittest discover -p "*_test.py"

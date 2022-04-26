@@ -32,7 +32,7 @@
 import math
 import numpy as np
 import tensorflow as tf
-from colorectal_survival import loss
+import loss
 
 
 class LossTest(tf.test.TestCase):

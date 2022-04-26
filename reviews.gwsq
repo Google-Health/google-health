@@ -1,0 +1,6 @@
+send_cls_to('health-opensource-admin+reviews');
+
+define Main {
+  set_tag('WANT_LGTM', 'all');
+  reassign_to_list(mdb('health-opensource-admin'));
+}

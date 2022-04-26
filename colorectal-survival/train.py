@@ -33,8 +33,8 @@ import lifelines
 import numpy as np
 import tensorflow as tf
 
-from colorectal_survival import loss
-from colorectal_survival import network
+import loss
+import network
 
 NUM_EXAMPLES = 64
 SEQUENCE_LENGTH = 2

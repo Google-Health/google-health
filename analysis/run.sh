@@ -1,4 +1,6 @@
-# Copyright (c) 2021, Google Inc.
+#!/bin/bash
+
+# Copyright (c) 2022, Google Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,30 +29,15 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-"""Tests network.py."""
 
-import unittest
-
-import tensorflow as tf
-
-import loss
-import network
-
-SEQUENCE_LENGTH = 2
-PATCH_SIZE = 128
-INPUT_SHAPE = (SEQUENCE_LENGTH, PATCH_SIZE, PATCH_SIZE, 3)
+set -e
+set -x
 
 
-class NetworkTest(unittest.TestCase):
+python3 -m virtualenv .
 
-  def test_network(self):
-    """Test that network compiles."""
-    model = network.build_network(INPUT_SHAPE)
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(0.01),
-        loss=loss.keras_cox_partial_likelihood,
-        metrics=[])
+source ./bin/activate
 
+pip install -r requirements.txt 	
 
-if __name__ == '__main__':
-  unittest.main()
+python -m unittest discover -p "*_test.py"

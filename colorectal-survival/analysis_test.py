@@ -32,7 +32,7 @@
 import unittest
 import pandas as pd
 
-from colorectal_survival import analysis
+import analysis
 
 
 class AnalysisTest(unittest.TestCase):
