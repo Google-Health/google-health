@@ -9,6 +9,28 @@ import numpy as np
 import scipy.stats
 
 
+def auc_to_mu(auc):
+  """Returns a `mu` value corresponding to an area under the ROC curve.
+
+  Under the signal detection theory framework, when the positive and negative
+  score distributions are modeled as Gaussians with unit variance, this function
+  finds a separation in means that yields a given AUC.
+  mu is equivalent to the sensitivity index, d'
+  (https://en.wikipedia.org/wiki/Sensitivity_index).
+
+  Args:
+    auc: (float) Area under an ROC curve.
+
+  Returns:
+    Float value representing the separation of score distributions
+    between negative and positive scores for a labeler (an algorithm or
+    group of readers who assign continuous suspicion scores to a set
+    of cases). The AUC is given by PHI(mu / sqrt(2)), where PHI is the
+    cumulative distribution function of the normal distribution.
+  """
+  return np.sqrt(2) * scipy.stats.norm.ppf(auc)
+
+
 def simulate_single_modality(disease,
                              mu,
                              delta_mu,
@@ -18,12 +40,13 @@ def simulate_single_modality(disease,
                              rng=np.random):
   """Simulates a single-modality reader data according to the Roe-Metz model.
 
-  This is the sort of data you might acquire when seeking to compare the
-  performance of multiple readers with a standalone algorithm. It does not
-  yet simulate data from each reader in two conditions, as might be the case
-  in an assisted-read trial.
+  (See simulate_model_vs_readers for an API with a friendlier parameterization
+  of the score distribution.)
 
-  Continuous "suspicion scores" are produced by both CAD and the readers,
+  This is the sort of data you might acquire when seeking to compare the
+  performance of multiple readers with a standalone algorithm.
+
+  Continuous "suspicion scores" are produced by both model and readers,
   but they can be thresholded to simulate binary predictions.
 
   Model scores are simulated by sampling two unit-variance normal distributions
@@ -35,8 +58,10 @@ def simulate_single_modality(disease,
   two score distributions also have unit variance.
   The reader scores for a given case are correlated with those of the algorithm.
 
-  See
-  https://github.com/dpc10ster/onlinebookk21778/blob/master/Ch23/Supplemental%20Material/OnlineAppendix%20Ch23.docx
+  See chapter 23 and the online supplement in:
+  Chakraborty DP. Observer Performance Methods for Diagnostic Imaging:
+  Foundations, Modeling, and Applications with R-Based Examples.
+  CRC Press; 2017.
 
   Args:
     disease: An array of indicator variables (whose elements are in {0, 1})
@@ -88,6 +113,69 @@ def simulate_single_modality(disease,
   reader_scores = np.column_stack([reader_score() for _ in range(num_readers)])
 
   return model_score, reader_scores
+
+
+def simulate_model_vs_readers(disease,
+                              model_auc,
+                              reader_auc,
+                              sigma_r,
+                              sigma_c,
+                              num_readers,
+                              rng=np.random):
+  """Simulates a single-modality reader data according to the Roe-Metz model.
+
+  This is the sort of data you might acquire when seeking to compare the
+  performance of multiple readers with a standalone algorithm.
+
+  Continuous "suspicion scores" are produced by both a model and the readers,
+  but they can be thresholded to simulate binary predictions.
+
+  Model scores are simulated by sampling two unit-variance normal distributions
+  separated by mu. Model scores are assumed to be deterministic for a given
+  case.
+
+  Reader scores are simulated by sampling from two unit variance normal
+  distributions separated by mu + delta_mu. For any specific radiologist, the
+  two score distributions also have unit variance.
+  The reader scores for a given case are correlated with those of the algorithm.
+
+  See chapter 23 and the online supplement in:
+  Chakraborty DP. Observer Performance Methods for Diagnostic Imaging:
+  Foundations, Modeling, and Applications with R-Based Examples.
+  CRC Press; 2017.
+
+  Args:
+    disease: An array of indicator variables (whose elements are in {0, 1})
+      giving the disease state for each case. The number of cases will be
+      inferred from the length of this variable.
+    model_auc: The expected discrimination performance of the model, in terms of
+      area under the ROC curve.
+    reader_auc: The expected discrimination performance of the average reader,
+      in terms of area under the ROC curve.
+    sigma_r: The standard deviation of the random effect for reader id. This
+      should be small relative to mu.
+    sigma_c: A value in [0, 1] that determines the correlation between model and
+      reader scores. If sigma_c = 1, the average reader score is the same as the
+      model score.
+    num_readers: The number of readers to simulate.
+    rng: An optional instance of numpy.random.RandomState.
+
+  Returns:
+    A pair of arrays:
+      model_score: A vector of model scores for each case.
+      reader_scores: A [num_cases x num_readers] array of reader scores.
+
+  """
+  mu = auc_to_mu(model_auc)
+  delta_mu = auc_to_mu(reader_auc) - mu
+  return simulate_single_modality(
+      disease,
+      mu,
+      delta_mu,
+      sigma_r=sigma_r,
+      sigma_c=sigma_c,
+      num_readers=num_readers,
+      rng=rng)
 
 
 def _get_roe_metz_variances(structure):
@@ -158,13 +246,13 @@ def _get_roe_metz_variances(structure):
         'Allowable values are "LL", "HL", "LH", and "HH"' % structure)
 
 
-def simulate_dual_modality(disease,
-                           mu,
-                           delta_mu,
-                           structure,
-                           num_readers,
-                           b=1,
-                           rng=np.random):
+def simulate_dual_modality_from_mu(disease,
+                                   mu,
+                                   delta_mu,
+                                   structure,
+                                   num_readers,
+                                   b=1,
+                                   rng=np.random):
   """Simulates reader study data on two modalities.
 
   Simulates reader study decision variables using the constrained
@@ -198,8 +286,8 @@ def simulate_dual_modality(disease,
     mu: The typical separation of the score distributions for diseased and
       non-diseased cases.
     delta_mu: The median difference in decision variables for diseased and
-      non-diseased cases for treatment 1 versus treatment 0. Treatment 0 has
-      separation mu, while treatment 1 has separation mu + delta_mu.
+      non-diseased cases for modality 1 versus modality 0. Modality 0 has
+      separation mu, while modality 1 has separation mu + delta_mu.
     structure: A setting for the variance parameters; one of {'HL', 'LL', 'HH',
       'LH'}. These letters correspond to high/low data correlation and high/low
       reader variance. See Table 2 of [2].
@@ -211,7 +299,7 @@ def simulate_dual_modality(disease,
 
   Returns:
     separations: An array giving the difference in the mean decision variable
-      for diseased and non-diseased cases for each reader x treatment pair.
+      for diseased and non-diseased cases for each reader x modality pair.
       It has shape [num_readers, 2].
     scores: An array of continuous-valued scores of shape
       [num_cases, num_readers, 2].
@@ -279,6 +367,75 @@ def simulate_dual_modality(disease,
       reader_scores[:, reader_idx, modality_idx] = reader_score
 
   return separations, reader_scores
+
+
+def simulate_dual_modality(disease,
+                           modality_0_auc,
+                           modality_1_auc,
+                           structure,
+                           num_readers,
+                           b=1,
+                           rng=np.random):
+  """Simulates reader study data on two modalities.
+
+  Simulates reader study decision variables using the constrained
+  unequal-variance Roe-Metz model.
+  This was introduced in [1], but formulae were excerpted from Hillis [2].
+  It's essentially the canonical Roe-Metz model [3], but the variance of the
+  scores for diseased cases is inflated by a constant factor.
+
+  [1] Hillis SL. Simulation of unequal-variance binormal multireader ROC
+  decision data: an extension of the Roe and Metz simulation model.
+  Acad Radiol. 2012;19: 1518-1528.
+
+  [2] Hillis SL. Relationship between Roe and Metz simulation model for
+  multireader diagnostic data and Obuchowski-Rockette model parameters.
+  Stat Med. 2018;37: 2067-2093.
+
+  [3] Roe CA, Metz CE. Dorfman-Berbaum-Metz method for statistical analysis of
+  multireader, multimodality receiver operating characteristic data: validation
+  and computer simulation. Acad Radiol. 1997;4:298-303.
+
+  For his simulations, Hillis [2] used parameters
+    (mu, b) in {0.821, 1.831, 3.661} x {0.856, 0.711, 0.551},
+
+  while Roe & Metz [3] used parameters
+    (mu, b) in {0.75,  1.50,  2.50 } x {1}
+
+  Args:
+    disease: An array of indicator variables (whose elements are in {0, 1})
+      giving the disease state for each case. The number of cases will be
+      inferred from the length of this variable.
+    modality_0_auc: The discrimination performance of the average reader in
+      modality 0, given in terms of AUC-ROC.
+    modality_1_auc: The discrimination performance of the average reader in
+      modality 1, given in terms of AUC-ROC.
+    structure: A setting for the variance parameters; one of {'HL', 'LL', 'HH',
+      'LH'}. These letters correspond to high/low data correlation and high/low
+      reader variance. See Table 2 of [2].
+    num_readers: The number of readers to simulate.
+    b: The variance inflation factor for the diseased cases. Variances for
+      diseased cases will be multiplied by 1/b^2. This value is typically at
+      most 1 (the default).
+    rng: An optional instance of numpy.random.RandomState.
+
+  Returns:
+    separations: An array giving the difference in the mean decision variable
+      for diseased and non-diseased cases for each reader x modality pair.
+      It has shape [num_readers, 2].
+    scores: An array of continuous-valued scores of shape
+      [num_cases, num_readers, 2].
+  """
+  mu = auc_to_mu(modality_0_auc)
+  delta_mu = auc_to_mu(modality_1_auc) - mu
+  return simulate_dual_modality_from_mu(
+      disease,
+      mu,
+      delta_mu,
+      structure=structure,
+      num_readers=num_readers,
+      b=b,
+      rng=rng)
 
 
 class TestResult(
@@ -495,8 +652,8 @@ def model_vs_readers_orh(disease,
   return _test_result(observed_effect_size, margin, se, dof, coverage)
 
 
-def _jackknife_covariance_two_treatment(disease, reader_scores, fom_fn):
-  """Estimates the reader-treatment covariance matrix.
+def _jackknife_covariance_dual_modality(disease, reader_scores, fom_fn):
+  """Estimates the reader-modality covariance matrix.
 
   See section 10.3 of Chakraborty DP. Observer Performance Methods for
   Diagnostic Imaging: Foundations, Modeling, and Applications with R-Based
@@ -506,27 +663,27 @@ def _jackknife_covariance_two_treatment(disease, reader_scores, fom_fn):
     disease: An array of ground-truth labels for each case, with shape
       [num_cases,].
     reader_scores: A matrix of reader scores, with shape [num_cases,
-      num_readers, num_treatments].
+      num_readers, num_modalities.
     fom_fn: A figure-of-merit function with signature fom_fn(y_true, y_score),
       yielding a scalar summary value. Examples are
       sklearn.metrics.roc_auc_score and sklearn.metrics.accuracy_score.
 
   Returns:
     covariance: A square covariance matrix of size
-      (num_readers * num_treatments) x (num_readers * num_treatments).
+      (num_readers * num_modalities) x (num_readers * num_modalities).
       Treatments and readers are interleaved, as described by `indices`, below.
-    indices: A list of pairs (i, j) giving the treatment and reader indices
+    indices: A list of pairs (i, j) giving the modality and reader indices
       for the rows and columns of the covariance matrix.
   """
-  num_cases, num_readers, num_treatments = reader_scores.shape
+  num_cases, num_readers, num_modalities = reader_scores.shape
   # Here, jk denotes jackknife. The jackknife samples are the figures-of-merit
   # computed with one case omitted.
   jk_samples = []
   indices = []
-  for treatment_idx in range(num_treatments):
+  for modality_idx in range(num_modalities):
     for reader_idx in range(num_readers):
-      score = reader_scores[:, reader_idx, treatment_idx]
-      indices.append((treatment_idx, reader_idx))
+      score = reader_scores[:, reader_idx, modality_idx]
+      indices.append((modality_idx, reader_idx))
       fom_jk = []
       for case_idx in range(num_cases):
         disease_jk = np.delete(disease, case_idx)
@@ -538,7 +695,7 @@ def _jackknife_covariance_two_treatment(disease, reader_scores, fom_fn):
   return covariances, indices
 
 
-def two_treatment_orh(disease,
+def dual_modality_orh(disease,
                       reader_scores,
                       fom_fn,
                       coverage=0.95,
@@ -546,19 +703,19 @@ def two_treatment_orh(disease,
                       verbose=True):
   """Performs the ORH procedure to compare readers in two conditions.
 
-  This function uses Obuchowski-Rockette-Hillis analysis to compare reader
-  performance under two conditions: treatment 0 and treatment 1.
+  This function uses Obuchowski-Rockette-Hillis (ORH) analysis to compare reader
+  performance under two conditions: modality 0 and modality 1.
   A common application might be to compare reader performance with and without
   algorithmic assistance.
 
   This tool analyzes data from a fully-crossed mutlireader, multicase (MRMC)
   study in which a panel of readers interprets the same set of cases under
-  two conditions. The reader scores can thus be arranged into a dense array
+  two modalities. The reader scores can thus be arranged into a dense array
   of shape [num_cases, num_readers, 2].
 
   This tool can be used with an arbitrary 'figure of merit' (FOM) defined on the
   labels and the reader scores; scores can be binary, ordinal or continuous.
-  It tests the null hypothesis that the treatment effect is zero.
+  It tests the null hypothesis that the modality effect is zero.
   I.e., reader performance does not differ between the two conditions.
 
   See chapter 10 of:
@@ -591,10 +748,10 @@ def two_treatment_orh(disease,
 
   Returns:
     A named tuple with fields:
-      effect: The estimated difference in the FOM between treatment 1 and
-        treatment 0. A positive value indicates that performance in treatment 1
-        is greater than that in treatment 0.
-      ci: A (lower, upper) confidence interval for the treatment effect.
+      effect: The estimated difference in the FOM between modality 1 and
+        modality 0. A positive value indicates that performance in modality 1
+        is greater than that in modality 0.
+      ci: A (lower, upper) confidence interval for the modality effect.
       statistic: The value of the t-statistic.
       dof: The degrees of freedom for the t-statistic.
       pvalue: The p-value associated with the test.
@@ -602,50 +759,50 @@ def two_treatment_orh(disease,
   if margin < 0:
     raise ValueError('margin parameter should be nonnegative.')
 
-  num_cases, num_readers, num_treatments = reader_scores.shape
-  if num_treatments != 2:
-    raise ValueError('Only two treatments are supported.')
+  num_cases, num_readers, num_modalities = reader_scores.shape
+  if num_modalities != 2:
+    raise ValueError('Only two modalities are supported.')
 
   if len(disease) != num_cases:
     raise ValueError(
         'disease, model_score and reader_scores must have the same size '
         'in the first dimension.')
 
-  reader_treatment_foms = np.zeros((num_readers, 2), dtype=np.float32)
+  reader_modality_foms = np.zeros((num_readers, 2), dtype=np.float32)
   for reader_idx in range(num_readers):
-    for treatment_idx in range(2):
-      fom = fom_fn(disease, reader_scores[:, reader_idx, treatment_idx])
-      reader_treatment_foms[reader_idx, treatment_idx] = fom
+    for modality_idx in range(2):
+      fom = fom_fn(disease, reader_scores[:, reader_idx, modality_idx])
+      reader_modality_foms[reader_idx, modality_idx] = fom
 
-  reader_foms = np.mean(reader_treatment_foms, axis=1)
-  treatment_foms = np.mean(reader_treatment_foms, axis=0)
-  average_fom = np.mean(treatment_foms)
+  reader_foms = np.mean(reader_modality_foms, axis=1)
+  modality_foms = np.mean(reader_modality_foms, axis=0)
+  average_fom = np.mean(modality_foms)
 
   assert len(reader_foms) == num_readers
-  assert len(treatment_foms) == 2
+  assert len(modality_foms) == 2
 
-  # mstr = mean squared reader/treatment difference; equation 10.43
+  # mstr = mean squared reader/modality difference; equation 10.43
   mstr = 0.0
   for reader_idx in range(num_readers):
-    for treatment_idx in range(2):
-      summand = reader_treatment_foms[reader_idx, treatment_idx]
-      summand -= treatment_foms[treatment_idx]
+    for modality_idx in range(2):
+      summand = reader_modality_foms[reader_idx, modality_idx]
+      summand -= modality_foms[modality_idx]
       summand -= reader_foms[reader_idx]
       summand += average_fom
       mstr += summand**2
   mstr /= num_readers - 1
 
   # Estimate covariance terms according to Equation 10.31
-  covmat, indices = _jackknife_covariance_two_treatment(disease, reader_scores,
+  covmat, indices = _jackknife_covariance_dual_modality(disease, reader_scores,
                                                         fom_fn)
   cov2_samples = []
   cov3_samples = []
   for row_idx in range(2 * num_readers):
-    treatment, reader = indices[row_idx]
+    modality, reader = indices[row_idx]
     for col_idx in range(row_idx + 1):
-      treatment_prime, reader_prime = indices[col_idx]
+      modality_prime, reader_prime = indices[col_idx]
       if reader != reader_prime:
-        if treatment == treatment_prime:
+        if modality == modality_prime:
           cov2_samples.append(covmat[row_idx, col_idx])
         else:
           cov3_samples.append(covmat[row_idx, col_idx])
@@ -657,7 +814,7 @@ def two_treatment_orh(disease,
     print('cov2 * 10^5', cov2 * 1e5)
     print('cov3 * 10^5', cov3 * 1e5)
 
-  observed_effect_size = treatment_foms[1] - treatment_foms[0]
+  observed_effect_size = modality_foms[1] - modality_foms[0]
 
   # Equation 10.45
   dof = (mstr + max(num_readers * (cov2 - cov3), 0))**2
@@ -667,3 +824,8 @@ def two_treatment_orh(disease,
   se = np.sqrt(2 * (mstr + num_readers * max(cov2 - cov3, 0)) / num_readers)
 
   return _test_result(observed_effect_size, margin, se, dof, coverage)
+
+
+def two_treatment_orh(*args, **kwargs):
+  """An alias for `dual_modality_orh`, kept for backward compatibility."""
+  return dual_modality_orh(*args, **kwargs)

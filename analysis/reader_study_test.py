@@ -10,7 +10,19 @@ import sklearn.metrics
 import reader_study
 
 
-class ReaderStudyTest(unittest.TestCase):
+class SimulationTest(unittest.TestCase):
+
+  def test_auc_to_mu(self):
+    self.assertTrue(np.isnan(reader_study.auc_to_mu(-1.0)))
+    # 0.23975 is stats.norm.cdf(-1.0 / sqrt(2)), indicating distribution
+    # A is 1 standard deviation below distribution B.
+    self.assertAlmostEqual(reader_study.auc_to_mu(0.23975), -1.0, places=5)
+    self.assertEqual(reader_study.auc_to_mu(0.5), 0)
+    # 0.76025 is stats.norm.cdf(1.0 / sqrt(2)), indicating distribution
+    # A is 1 standard deviation above distribution B.
+    self.assertAlmostEqual(reader_study.auc_to_mu(0.76025), 1.0, places=5)
+    self.assertTrue(np.isinf(reader_study.auc_to_mu(1.0)))
+    self.assertTrue(np.isnan(reader_study.auc_to_mu(2.0)))
 
   def simulate_reader_study(self, **update_params):
 
@@ -108,14 +120,14 @@ class ReaderStudyTest(unittest.TestCase):
   def testRoeMetzVarianceDeterministic(self):
     self._testRoeMetzVariance('deterministic')
 
-  def testSimulateTwoModalities(self):
+  def testSimulateDualModality(self):
     rng = np.random.RandomState(1941)
     num_cases = 50000
     num_positives = 10000
     num_readers = 12
     disease = [1] * num_positives + (num_cases - num_positives) * [0]
 
-    separations, scores = reader_study.simulate_dual_modality(
+    separations, scores = reader_study.simulate_dual_modality_from_mu(
         disease=disease,
         mu=1.0,
         delta_mu=0.5,
@@ -143,6 +155,8 @@ class ReaderStudyTest(unittest.TestCase):
             disease, scores[:, reader_idx, modality_idx])
         np.testing.assert_allclose(expected_auc, actual_auc, atol=0.025)
 
+
+class AnalysisTest(unittest.TestCase):
   def testOneSidedPValue(self):
     self.assertEqual(0.5, reader_study._one_sided_p_value(0, df=1))
     self.assertEqual(0.5, reader_study._one_sided_p_value(0, df=2))
@@ -228,11 +242,11 @@ class ReaderStudyTest(unittest.TestCase):
     np.testing.assert_allclose(result.ci, (-0.03233184, 0.02064934), atol=1e-9)
     np.testing.assert_allclose(result.dof, 31.00905)
 
-  def testTwoTreatmentORH(self):
+  def testDualModalityORH(self):
     rng = np.random.RandomState(1987)
     disease = 200 * [0] + 200 * [1]
     num_readers = 10
-    _, scores = reader_study.simulate_dual_modality(
+    _, scores = reader_study.simulate_dual_modality_from_mu(
         disease=disease,
         mu=0.821,
         delta_mu=0,
@@ -240,7 +254,7 @@ class ReaderStudyTest(unittest.TestCase):
         num_readers=num_readers,
         b=1,
         rng=rng)
-    result = reader_study.two_treatment_orh(
+    result = reader_study.dual_modality_orh(
         disease, scores, fom_fn=sklearn.metrics.roc_auc_score, verbose=False)
     # The following values were produced by the RJafroc implementation.
     # Note that RJafroc subtracts the second treatment from the first, while we
@@ -272,15 +286,17 @@ class ReaderStudyTest(unittest.TestCase):
         reader_scores,
         fom_fn=sklearn.metrics.roc_auc_score)
 
-    # In two_treatment_orh, the effect size is computed as
+    # In dual_modality_orh, the effect size is computed as
     # `modality_at_index_1 - modality_at_index_0`.
     tiled_model_scores = np.tile(np.expand_dims(model_score, -1), (1, 10))
     stacked_scores = np.stack((reader_scores, tiled_model_scores), -1)
     # input shape should be (num_cases, num_readers, num_modalities)
     assert stacked_scores.shape == (1000, 10, 2)
 
-    result2 = reader_study.two_treatment_orh(
-        disease, stacked_scores, fom_fn=sklearn.metrics.roc_auc_score,
+    result2 = reader_study.dual_modality_orh(
+        disease,
+        stacked_scores,
+        fom_fn=sklearn.metrics.roc_auc_score,
         verbose=False)
 
     np.testing.assert_allclose(result1.effect, result2.effect, atol=1e-4)
