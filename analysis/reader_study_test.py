@@ -3,14 +3,15 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import unittest
+from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
 import scipy.stats
 import sklearn.metrics
 import reader_study
 
 
-class SimulationTest(unittest.TestCase):
+class SimulationTest(parameterized.TestCase):
 
   def test_auc_to_mu(self):
     self.assertTrue(np.isnan(reader_study.auc_to_mu(-1.0)))
@@ -96,7 +97,8 @@ class SimulationTest(unittest.TestCase):
         for delta_mu in (-0.15, 0.0, 0.15):
           self.simulate_reader_study(sigma_c=sigma_c, mu=mu, delta_mu=delta_mu)
 
-  def _testRoeMetzVariance(self, structure):
+  @parameterized.parameters('HL', 'LH', 'HH', 'LL', 'deterministic')
+  def testRoeMetzVariance(self, structure):
     variances = reader_study._get_roe_metz_variances(structure)
     total_variance = 0.0
     for key in ('var_case', 'var_modality_case', 'var_reader_case',
@@ -104,21 +106,6 @@ class SimulationTest(unittest.TestCase):
       total_variance += variances[key]
     self.assertEqual(total_variance, 1.0)
     self.assertEqual(variances['var_reader'], variances['var_modality_reader'])
-
-  def testRoeMetzVarianceHL(self):
-    self._testRoeMetzVariance('HL')
-
-  def testRoeMetzVarianceLH(self):
-    self._testRoeMetzVariance('LH')
-
-  def testRoeMetzVarianceHH(self):
-    self._testRoeMetzVariance('HH')
-
-  def testRoeMetzVarianceLL(self):
-    self._testRoeMetzVariance('LL')
-
-  def testRoeMetzVarianceDeterministic(self):
-    self._testRoeMetzVariance('deterministic')
 
   def testSimulateDualModality(self):
     rng = np.random.RandomState(1941)
@@ -156,7 +143,7 @@ class SimulationTest(unittest.TestCase):
         np.testing.assert_allclose(expected_auc, actual_auc, atol=0.025)
 
 
-class AnalysisTest(unittest.TestCase):
+class AnalysisTest(absltest.TestCase):
   def testOneSidedPValue(self):
     self.assertEqual(0.5, reader_study._one_sided_p_value(0, df=1))
     self.assertEqual(0.5, reader_study._one_sided_p_value(0, df=2))
@@ -307,4 +294,4 @@ class AnalysisTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()
