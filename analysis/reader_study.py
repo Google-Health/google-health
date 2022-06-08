@@ -445,12 +445,12 @@ class TestResult(
 
 
 def _two_sided_p_value(t, df):
-  """Computes the 2-sided p-value for a t-statisic with the specified d.o.f."""
+  """Computes the 2-sided p-value for a t-statistic with the specified d.o.f."""
   return 2 * scipy.stats.t.cdf(-np.abs(t), df=df)
 
 
 def _one_sided_p_value(t, df):
-  """Computes the 1-sided p-value for a t-statisic with the specified d.o.f."""
+  """Computes the 1-sided p-value for a t-statistic with the specified d.o.f."""
   return scipy.stats.t.sf(t, df=df)
 
 
