@@ -4,7 +4,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from typing import Optional
 import collections
+import dataclasses
 import numpy as np
 import scipy.stats
 
@@ -54,7 +56,7 @@ def simulate_single_modality(disease,
   case.
 
   Reader scores are simulated by sampling from two unit variance normal
-  distributions separated by mu + delta_mu. For any specific radiologist, the
+  distributions separated by mu + delta_mu. For any specific reader, the
   two score distributions also have unit variance.
   The reader scores for a given case are correlated with those of the algorithm.
 
@@ -135,7 +137,7 @@ def simulate_model_vs_readers(disease,
   case.
 
   Reader scores are simulated by sampling from two unit variance normal
-  distributions separated by mu + delta_mu. For any specific radiologist, the
+  distributions separated by mu + delta_mu. For any specific reader, the
   two score distributions also have unit variance.
   The reader scores for a given case are correlated with those of the algorithm.
 
@@ -241,9 +243,9 @@ def _get_roe_metz_variances(structure):
         var_modality_reader=0.0,
     )
   else:
-    raise ValueError(
-        'Unrecognized structure %s. '
-        'Allowable values are "LL", "HL", "LH", and "HH"' % structure)
+    raise ValueError('Unrecognized structure %s. '
+                     'Allowable values are "LL", "HL", "LH", and "HH"' %
+                     structure)
 
 
 def simulate_dual_modality_from_mu(disease,
@@ -437,10 +439,18 @@ def simulate_dual_modality(disease,
       b=b,
       rng=rng)
 
+@dataclasses.dataclass
+class EffectSizeConstituents:
+  # Used in model versus readers ORH
+  model_fom: Optional[np.ndarray] = None
+  average_reader_fom: Optional[np.ndarray] = None
+  # Used in dual modality ORH
+  modality_foms: Optional[np.ndarray] = None
 
 class TestResult(
-    collections.namedtuple('TestResult',
-                           ['effect', 'ci', 'statistic', 'dof', 'pvalue'])):
+    collections.namedtuple('TestResult', [
+        'effect', 'ci', 'statistic', 'dof', 'pvalue', 'effect_size_constituents'
+    ])):
   """The results of the ORH procedure hypothesis test."""
 
 
@@ -454,7 +464,7 @@ def _one_sided_p_value(t, df):
   return scipy.stats.t.sf(t, df=df)
 
 
-def _test_result(effect, margin, se, dof, coverage):
+def _test_result(effect, margin, se, dof, coverage, effect_size_constituents):
   """Computes the test results based on the t-distribution."""
   t_stat = (effect + margin) / se
   if margin:
@@ -469,7 +479,8 @@ def _test_result(effect, margin, se, dof, coverage):
       ci=(lower, upper),
       statistic=t_stat,
       dof=dof,
-      pvalue=p_value)
+      pvalue=p_value,
+      effect_size_constituents=effect_size_constituents)
 
 
 def _jackknife_covariance_model_vs_readers(disease, model_score, reader_scores,
@@ -632,10 +643,9 @@ def model_vs_readers_orh(disease,
         'in the first dimension.')
 
   model_fom = fom_fn(disease, model_score)
-  radiologist_foms = [
-      fom_fn(disease, rad_scores) for rad_scores in reader_scores.T
-  ]
-  observed_effect_size = model_fom - np.mean(radiologist_foms)
+  reader_foms = [fom_fn(disease, rad_scores) for rad_scores in reader_scores.T]
+  average_reader_fom = np.mean(reader_foms)
+  observed_effect_size = model_fom - average_reader_fom
 
   covariances = _jackknife_covariance_model_vs_readers(disease, model_score,
                                                        reader_scores, fom_fn)
@@ -645,11 +655,18 @@ def model_vs_readers_orh(disease,
   cov2 = np.mean(off_diagonals)
 
   # msr = mean squared reader difference
-  msr = np.var(radiologist_foms - model_fom, ddof=1)
+  msr = np.var(reader_foms - model_fom, ddof=1)
   se = np.sqrt((msr + max(num_readers * cov2, 0)) / num_readers)
   dof = (num_readers - 1) * ((msr + max(num_readers * cov2, 0)) / msr)**2
 
-  return _test_result(observed_effect_size, margin, se, dof, coverage)
+  return _test_result(
+      effect=observed_effect_size,
+      margin=margin,
+      se=se,
+      dof=dof,
+      coverage=coverage,
+      effect_size_constituents=EffectSizeConstituents(
+          model_fom=model_fom, average_reader_fom=average_reader_fom))
 
 
 def _jackknife_covariance_dual_modality(disease, reader_scores, fom_fn):
@@ -823,7 +840,13 @@ def dual_modality_orh(disease,
   # Equation 10.48
   se = np.sqrt(2 * (mstr + num_readers * max(cov2 - cov3, 0)) / num_readers)
 
-  return _test_result(observed_effect_size, margin, se, dof, coverage)
+  return _test_result(
+      effect=observed_effect_size,
+      margin=margin,
+      se=se,
+      dof=dof,
+      coverage=coverage,
+      effect_size_constituents=EffectSizeConstituents(modality_foms=modality_foms))
 
 
 def two_treatment_orh(*args, **kwargs):
