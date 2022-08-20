@@ -9,6 +9,7 @@ import collections
 import dataclasses
 import numpy as np
 import scipy.stats
+import inspect
 
 
 def auc_to_mu(auc):
@@ -669,7 +670,8 @@ def model_vs_readers_orh(disease,
           model_fom=model_fom, average_reader_fom=average_reader_fom))
 
 
-def _jackknife_covariance_dual_modality(disease, reader_scores, fom_fn):
+def _jackknife_covariance_dual_modality(disease, reader_scores, fom_fn,
+                                        sample_weight=None):
   """Estimates the reader-modality covariance matrix.
 
   See section 10.3 of Chakraborty DP. Observer Performance Methods for
@@ -683,7 +685,10 @@ def _jackknife_covariance_dual_modality(disease, reader_scores, fom_fn):
       num_readers, num_modalities.
     fom_fn: A figure-of-merit function with signature fom_fn(y_true, y_score),
       yielding a scalar summary value. Examples are
-      sklearn.metrics.roc_auc_score and sklearn.metrics.accuracy_score.
+      sklearn.metrics.roc_auc_score and sklearn.metrics.accuracy_score. Note,
+      if sample_weight is provided as an argument to this function, it must
+      accept sample_weight as an argument.
+    sample_weight: The optional weights of each sample.
 
   Returns:
     covariance: A square covariance matrix of size
@@ -705,7 +710,12 @@ def _jackknife_covariance_dual_modality(disease, reader_scores, fom_fn):
       for case_idx in range(num_cases):
         disease_jk = np.delete(disease, case_idx)
         score_jk = np.delete(score, case_idx)
-        fom_jk.append(fom_fn(disease_jk, score_jk))
+        if sample_weight is None:
+          fom_val = fom_fn(disease_jk, score_jk)
+        else:
+          sample_weight_jk = np.delete(sample_weight, case_idx)
+          fom_val = fom_fn(disease_jk, score_jk, sample_weight=sample_weight_jk)
+        fom_jk.append(fom_val)
       jk_samples.append(fom_jk)
   covariances = np.cov(jk_samples, rowvar=True, ddof=1)
   covariances *= (num_cases - 1)**2 / float(num_cases)
@@ -717,6 +727,7 @@ def dual_modality_orh(disease,
                       fom_fn,
                       coverage=0.95,
                       margin=0,
+                      sample_weight=None,
                       verbose=True):
   """Performs the ORH procedure to compare readers in two conditions.
 
@@ -752,14 +763,20 @@ def dual_modality_orh(disease,
     reader_scores: A matrix of reader scores for each case, under both
       conditions. It has shape [num_cases, num_readers, 2].
     fom_fn: A figure-of-merit function with signature fom_fn(y_true, y_score),
-      yielding a scalar summary value. Examples are
-      sklearn.metrics.roc_auc_score and sklearn.metrics.accuracy_score.
+      yielding a scalar summary value. Function may also have an optional 
+      sample_weight argument for the weights of the cases. Examples are
+      sklearn.metrics.roc_auc_score and sklearn.metrics.accuracy_score. Note,
+      if sample_weight is provided as an argument to this function, it must
+      accept sample_weight as an argument.
     coverage: The size of the confidence interval. Should be in (0, 1]. The
       default is 0.95.
     margin: A positive noninferiority margin. When supplied and nonzero, the
       p-value refers to the one-sided test of the null hypothesis in which the
       model is at least this much worse than the average human reader. The units
       depend on the figure-of-merit function.
+    sample_weight: Optional sample weight of each score. fom_fn must take an
+      argument of the name 'sample_weight' if this is provided. Expected shape
+      is [num_cases,].
     verbose: A boolean indicating whether intermediate quantities should be
       printed. Defaults to True.
 
@@ -772,6 +789,9 @@ def dual_modality_orh(disease,
       statistic: The value of the t-statistic.
       dof: The degrees of freedom for the t-statistic.
       pvalue: The p-value associated with the test.
+
+  Raises:
+    ValueError if argument types or lengths are incorrect.
   """
   if margin < 0:
     raise ValueError('margin parameter should be nonnegative.')
@@ -780,15 +800,26 @@ def dual_modality_orh(disease,
   if num_modalities != 2:
     raise ValueError('Only two modalities are supported.')
 
+  if sample_weight is not None:
+    if len(sample_weight) != num_cases:
+      raise ValueError('Length of weights do not match cases.')
+
   if len(disease) != num_cases:
     raise ValueError(
         'disease, model_score and reader_scores must have the same size '
         'in the first dimension.')
 
+  if 'sample_weight' not in inspect.signature(fom_fn).parameters.keys():
+    raise ValueError(f'sample_weight is given but no such argument is supported'
+                     ' by the given figure-of-merit function {fom_fn.__name__}')
   reader_modality_foms = np.zeros((num_readers, 2), dtype=np.float32)
   for reader_idx in range(num_readers):
     for modality_idx in range(2):
-      fom = fom_fn(disease, reader_scores[:, reader_idx, modality_idx])
+      if sample_weight is not None:
+        fom = fom_fn(disease, reader_scores[:, reader_idx, modality_idx],
+                     sample_weight=sample_weight)
+      else:
+        fom = fom_fn(disease, reader_scores[:, reader_idx, modality_idx] )
       reader_modality_foms[reader_idx, modality_idx] = fom
 
   reader_foms = np.mean(reader_modality_foms, axis=1)
@@ -811,7 +842,7 @@ def dual_modality_orh(disease,
 
   # Estimate covariance terms according to Equation 10.31
   covmat, indices = _jackknife_covariance_dual_modality(disease, reader_scores,
-                                                        fom_fn)
+                                                        fom_fn, sample_weight)
   cov2_samples = []
   cov3_samples = []
   for row_idx in range(2 * num_readers):

@@ -144,6 +144,7 @@ class SimulationTest(parameterized.TestCase):
 
 
 class AnalysisTest(absltest.TestCase):
+
   def testOneSidedPValue(self):
     self.assertEqual(0.5, reader_study._one_sided_p_value(0, df=1))
     self.assertEqual(0.5, reader_study._one_sided_p_value(0, df=2))
@@ -251,6 +252,42 @@ class AnalysisTest(absltest.TestCase):
     np.testing.assert_allclose(
         result.ci, (-0.04284442691, 0.05186442691), atol=1e-6)
     np.testing.assert_allclose(result.dof, 85.5241922, atol=1e-4)
+
+  def testDualModalityORHWeights(self):
+    rng = np.random.RandomState(1987)
+    disease = 200 * [0] + 200 * [1]
+    same_weights = np.ones(400)
+    diff_weights = 100 * [0.5] + 100 * [2.0] + 100 * [0.5] + 100 * [2.0]
+    num_readers = 10
+    _, scores = reader_study.simulate_dual_modality_from_mu(
+        disease=disease,
+        mu=0.821,
+        delta_mu=0,
+        structure='HL',
+        num_readers=num_readers,
+        b=1,
+        rng=rng)
+    result1 = reader_study.dual_modality_orh(
+        disease, scores, fom_fn=sklearn.metrics.roc_auc_score,
+        sample_weight=same_weights, verbose=False)
+    # The following values were produced by the RJafroc implementation.
+    # Note that RJafroc subtracts the second treatment from the first, while we
+    # do the reverse.
+    np.testing.assert_allclose(result1.effect, 0.00451, atol=1e-6)
+    np.testing.assert_allclose(result1.pvalue, 0.8502715, atol=1e-6)
+    np.testing.assert_allclose(
+        result1.ci, (-0.04284442691, 0.05186442691), atol=1e-6)
+    np.testing.assert_allclose(result1.dof, 85.5241922, atol=1e-4)
+
+    # The following needs to be verified against a known implementation.
+    result2 = reader_study.dual_modality_orh(
+        disease, scores, fom_fn=sklearn.metrics.roc_auc_score,
+        sample_weight=diff_weights, verbose=False)
+    np.testing.assert_allclose(result2.effect, 0.0049924254, atol=1e-6)
+    np.testing.assert_allclose(result2.pvalue, 0.8500524936337132, atol=1e-6)
+    np.testing.assert_allclose(
+        result2.ci, (-0.04721873581329774, 0.057203586696781626), atol=1e-6)
+    np.testing.assert_allclose(result2.dof, 109.94254605878852, atol=1e-4)
 
   def testORHEquivalence(self):
     """Tests equivalency of two approaches to model vs. readers comparison."""
