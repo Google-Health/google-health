@@ -79,7 +79,8 @@ def calculate_density(detected_centroids: List[Tuple[float]],
     # PIL expects (width, height), but the shape is
     # (row, column) = (height, width)
     m_pil = PIL.Image.fromarray(mask).resize(
-        (density_shape[1], density_shape[0]), PIL.Image.NEAREST)
+        (density_shape[1], density_shape[0]), PIL.Image.Resampling.NEAREST
+    )
     mask = np.array(m_pil)
   for i in range(density_shape[0]):
     for j in range(density_shape[1]):
