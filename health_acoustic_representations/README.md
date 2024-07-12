@@ -20,10 +20,12 @@ https://arxiv.org/abs/2403.02522.
 
 ## Step 1: Request access
 
-Contact us at health_acoustic_representations@google.com to express interest. We
-will reach out with a form asking for detailed context about your intended
-project and use case. Your request might go through a lightweight review
-process. Once your use case has been approved, you may proceed with step 2. 
+Contact us at health_acoustic_representations@google.com to express interest.
+You will need to fill this form
+https://docs.google.com/forms/d/e/1FAIpQLSc0Riwp31Vq033_Prklyfp_rSp3OqdgC7xHMzoB98-sDSw5KA/viewform?usp=dialog
+for us to learn about your use case. Your request might go through a
+lightweight review process. Once your use case has been approved, you may
+proceed with step 2.
 
 ## Step 2: Create a Google Cloud project
 
