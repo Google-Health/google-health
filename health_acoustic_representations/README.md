@@ -48,7 +48,7 @@ Note that you can also identify as yourself. See example Colab Notebook.
 
 ## Step 4: Query the API(s)
 
-### Option 1: online predictions
+### Online predictions
 
 Online predictions are typically used for obtaining embeddings on a small number
 of audio files. It works by sending the input you want to process as a JSON
@@ -99,38 +99,7 @@ which will create a local JSON file containing short-lived credentials. You must
 variable `GOOGLE_APPLICATION_CREDENTIALS` to this value. More information here: https://cloud.google.com/docs/authentication/provide-credentials-adc#local-dev.
 
 
-Then, you can send queries to the API in this manner.
-
-```python
-import random
-from google.cloud.aiplatform.aiplatform import gapic
-
-def predict_endpoint_sample(
-    project: str,
-    endpoint_id: str,
-    raw_audio: list[list[float]],
-    location: str = "us-west1",
-    api_endpoint: str = "us-west1-aiplatform.googleapis.com",
-) -> list[dict[str, float]]:
-  assert {len(x) for x in raw_audio} == {32000}, "All clips should have exactly 32000 steps."
-  client_options = {'api_endpoint': api_endpoint}
-  client = gapic.PredictionServiceClient(client_options=client_options)
-  endpoint = client.endpoint_path(
-      project=project, location=location, endpoint=endpoint_id
-  )
-  response = client.predict(endpoint=endpoint, instances=raw_audio)
-  return response.predictions
-
-
-endpoint_id = '200'
-project = '4016704501'
-raw_audio = [[random.random() for _ in range(32000)] for _ in range(4)]
-embeddings = predict_endpoint_sample(
-  project=project,
-  endpoint_id=endpoint_id,
-  raw_audio=raw_audio,
-)
-```
+Then, you can send queries to the API with the code provided in `hear_demo.ipynb`.
 
 If you haven't set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable, you will get see this error 
 
@@ -142,102 +111,8 @@ DefaultCredentialsError: Your default credentials were not found. To set up Appl
 Note that the online API has a 1.5 MB limit on the payload, which represents 4
 clips of 2s sampled at 16kHz.
 
-Alternatively, you can provide instead GCS bucket URIs and credentials using the following snippet
+Alternatively, you can provide instead GCS bucket URIs and credentials using the code in `hear_demo.ipynb`.
 
-```python
-import datetime
-from typing import List
-
-import google.auth
-import google.auth.transport.requests
-from google.cloud import aiplatform
-from google.protobuf import json_format
-from google.protobuf import struct_pb2
-
-gcs_creds, project = google.auth.default()
-
-
-def initial_token_refresh():
-  """Obtain short lived credentials for your GCS bucket."""
-  auth_req = google.auth.transport.requests.Request()
-  gcs_creds.refresh(auth_req)
-  assert (
-      gcs_creds.valid
-  ), f'Unexpected error: GCS Credentials are invalid'
-  time_until_expiry = (
-      gcs_creds.expiry - datetime.datetime.utcnow()
-  ).total_seconds() // 60
-  print(
-      'Token will expire at'
-      f' {gcs_creds.expiry.strftime("%Y-%m-%d %H:%M:%S")} UTC'
-      f' ({time_until_expiry} minutes)'
-  )
-
-
-initial_token_refresh()
-
-
-PredictionServiceClient = aiplatform.aiplatform.gapic.PredictionServiceClient
-
-vertex_endpoint_id = '220'
-vertex_endpoint_project_id = '4016704501'
-vertex_endpoint_location = 'us-west1'
-gcs_bucket_name = 'yout_bucket_name'
-API_ENDPOINT = 'us-west1-aiplatform.googleapis.com'
-
-
-def create_prediction_service_client_and_endpoint_path():
-  client_options = {
-      'api_endpoint': (
-          f'{vertex_endpoint_location}-aiplatform.googleapis.com'
-      )
-  }
-  # Initialize client that will be used to create and send requests.
-  # This client only needs to be created once, and can be reused for multiple
-  # requests.
-  client = PredictionServiceClient(client_options=client_options)
-  endpoint_path = client.endpoint_path(
-      project=vertex_endpoint_project_id,
-      location=vertex_endpoint_location,
-      endpoint=vertex_endpoint_id,
-  )
-  return client, endpoint_path
-
-
-def get_prediction_instances(image_uris: List[str]):
-  """Returns a list of JSON dicts to pass as Vertex PredictionService instances."""
-  instances = []
-  for image_uri in image_uris:
-    instance_dict = {
-        'bucket_name': gcs_bucket_name,
-        'object_uri': image_uri,
-        'bearer_token': gcs_creds.token,
-    }
-    instance = json_format.ParseDict(instance_dict, struct_pb2.Value())
-    instances.append(instance)
-  return instances
-
-
-def predict(
-    client: PredictionServiceClient, endpoint_path: str, image_uris: List[str]
-):
-  """Calls predict for a Vertex endpoint using the given image paths."""
-  instances = get_prediction_instances(image_uris)
-  parameters_dict = {}
-  parameters = json_format.ParseDict(parameters_dict, struct_pb2.Value())
-
-  return client.predict(
-      endpoint=endpoint_path, instances=instances, parameters=parameters
-  )
-
-
-client, endpoint_path = create_prediction_service_client_and_endpoint_path()
-predictions = predict(
-  client, 
-  endpoint_path=endpoint_path, 
-  image_uris=['data/filename1.wav', 'data/filename2.wav']
-)
-```
 
 #### Using bash
 
@@ -250,8 +125,8 @@ gcloud auth application-default login --impersonate-service-account your-service
 You can then create some variables
 
 ```bash
-ENDPOINT_ID="200"  # or "220" for the GCS URI endpoint.
-PROJECT_ID="4016704501"
+ENDPOINT_ID="200"  # or "201" for the GCS URI endpoint.
+PROJECT_ID="132886652110"
 INPUT_DATA_FILE="path/to/your/json/file"
 ```
 
@@ -266,49 +141,12 @@ https://us-west1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/u
 -d "@${INPUT_DATA_FILE}"
 ```
 
+### If you have a lot of queries to run
 
-### Option 2: batch predictions
-
-If you have too many clips to use the online prediction mode, you should be
-using the batch prediction mode, which runs an asynchronous job in the background and notifies you when it has completed. For this, you will need to create a GCS bucket
-using the "Storage" section of the Google Cloud Console
-(https://cloud.google.com/storage/docs/creating-buckets). 
-
-You must give read access to this bucket to your service account (the same that
-has access to the HeAR API).
-
-Then, you should upload your audio clips to this bucket. We strongly recommend
-the JSONL format. An example of such a file is
-
-```
-[1,2,3,4]
-[4,4,4,4]
-```
-
-Which contains two audio files of size 4. In your case, all rows should contain
-*exactly* 32000 floats. You can start your job using this code sample
-
-
-```python
-from google.cloud.aiplatform.aiplatform import jobs
-
-
-YOUR_BUCKET_NAME = 'your_bucket_name'
-
-jobs.BatchPredictionJob.submit(
-        job_display_name='your_job_name',
-        model_name='projects/4016704501/locations/us-west1/models/220',
-        instances_format="jsonl",
-        gcs_source=f"gs://{YOUR_BUCKET_NAME}/path/to/your/input/jsonl/file",
-        gcs_destination_prefix=f"gs://{YOUR_BUCKET_NAME}/path/to/your/output/jsonl/file",
-        predictions_format="jsonl",
-        accelerator_type='NVIDIA_TESLA_V100',
-        accelerator_count=1,
-        machine_type='n1-standard-8',
-        project="4016704501",
-        location="us-west1",
-)
-```
+In the case that you have a very large number of audio clips to embed (>1000),
+calling this API sequentially will be too slow. We suggest that you use parallel
+queries on our CPU endpoints instead, which will result in a more appropriate
+throughput. See example in `hear_demo.ipynb`.
 
 ## General notes
 
