@@ -17,7 +17,8 @@ MIN_HU = -1024
 
 # TODO(b/339471206): Add regression test for `create_ct_tfexample()`.
 def create_ct_tfexample(
-    dicom_series: Sequence[pydicom.Dataset], dataset_name: str = 'adhoc'
+    dicom_series: Sequence[pydicom.Dataset], dataset_name: str = 'adhoc',
+    strict_check: bool = False
 ) -> tf.train.Example:
   """Create a CT tf.example for inference based on a single series as input.
 
@@ -29,13 +30,15 @@ def create_ct_tfexample(
     dicom_series: A list of pydicom series as input to create the example.
     dataset_name: The dataset-level name given to the key created for the
       example. Stored under 'volume/id'.
+    strict_check: If True, raise ValueError if the DICOM series as error.
+      Otherwise, return a tf.train.Example with possibly invalid DICOM series.
 
   Returns:
     example: A tf.example in CT format for inference.
   """
 
   # Dedupe and sort incoming slices.
-  dicom_series, _ = dicom_utils.dedupe_series(dicom_series)
+  dicom_series, _ = dicom_utils.dedupe_series(dicom_series, strict_check)
 
   dicom_images_dict = dicom_utils.map_by_series_instance_uid(
       dicom_series, sort_values=True
@@ -59,15 +62,20 @@ def create_ct_tfexample(
   # Verify slice locations are consecutive (i.e. DICOM list is complete).
   spacing = dicom_utils.try_get_average_slice_spacing(filtered_dicom_images)
   depth = len(filtered_dicom_images)
-  patient_id = filtered_dicom_images[0].PatientID
+  patient_id = 'UNKNOWN'
+  if 'PatientID' in filtered_dicom_images[0]:
+    patient_id = filtered_dicom_images[0].PatientID
   study_uid = filtered_dicom_images[0].StudyInstanceUID
   # Extract Age from the DICOM.
   bucketized_age_value = None
-  if 'PatientAge' in filtered_dicom_images[0]:
-    patient_age_as = filtered_dicom_images[0].PatientAge
-    age_value = ''.join(x for x in patient_age_as if x.isdigit())
-    age_value = float(age_value)
-    bucketized_age_value = int(np.floor(age_value / 5.0))
+  try:
+    if 'PatientAge' in filtered_dicom_images[0]:
+      patient_age_as = filtered_dicom_images[0].PatientAge
+      age_value = ''.join(x for x in patient_age_as if x.isdigit())
+      age_value = float(age_value)
+      bucketized_age_value = int(np.floor(age_value / 5.0))
+  except ValueError:
+    bucketized_age_value = None
 
   # Extract image PNG values for example.
   instances_png = []

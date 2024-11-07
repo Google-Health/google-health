@@ -87,6 +87,7 @@ def try_get_average_slice_spacing(
 
 def dedupe_series(
     dicom_datasets: Sequence[pydicom.Dataset],
+    strict_check: bool = False
 ) -> Tuple[Sequence[pydicom.Dataset], bool]:
   """Deduplicates slices of a single series by acquisition and instance number.
 
@@ -97,6 +98,9 @@ def dedupe_series(
   Args:
     dicom_datasets: List of pydicom datasets to be de-duped. Note, this assumes
       that all belong to the same series instance UID.
+    strict_check: If True, raise ValueError if the DICOM series as error.
+      Otherwise, return DICOMs with possibly invalid DICOM series (e.g. missing
+      AcquisitionNumber).
 
   Returns:
     final_dicoms: List of deduped cases.
@@ -109,11 +113,14 @@ def dedupe_series(
   acquisitions = {}
   for a_dicom in dicom_datasets:
     series_uid.add(a_dicom.SeriesInstanceUID)
-    if 'AcquisitionNumber' not in a_dicom:
+    a_acquisition_number = -1
+    if 'AcquisitionNumber' not in a_dicom and strict_check:
       raise ValueError('DICOM does not have AcquisitionNumber metadata.')
-    if a_dicom.AcquisitionNumber not in acquisitions:
-      acquisitions[a_dicom.AcquisitionNumber] = []
-    acquisitions[a_dicom.AcquisitionNumber].append(a_dicom)
+    elif 'AcquisitionNumber' in a_dicom:
+      a_acquisition_number = a_dicom.AcquisitionNumber
+    if a_acquisition_number not in acquisitions:
+      acquisitions[a_acquisition_number] = []
+    acquisitions[a_acquisition_number].append(a_dicom)
   most_slices = max(acquisitions, key=lambda k: len(acquisitions[k]))
 
   if len(series_uid) != 1:
