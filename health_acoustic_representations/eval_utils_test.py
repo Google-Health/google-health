@@ -30,7 +30,7 @@ import eval_utils
     with self.subTest(name='check_regularization_parameter'):
       self.assertEqual(probe.alpha, 0.1)
     with self.subTest(name='check_loss_type'):
-      self.assertEqual(probe.loss, 'log')
+      self.assertEqual(probe.loss, 'log_loss')
     with self.subTest(name='check_class_weight'):
       self.assertEqual(probe.class_weight, 'balanced')
 

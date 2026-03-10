@@ -34,7 +34,7 @@ def create_linear_probe(
   else:
     if use_sgd_classifier:
       return linear_model.SGDClassifier(
-          loss='log',
+          loss='log_loss',
           penalty='l2',
           alpha=regularization_coef,
           class_weight='balanced',

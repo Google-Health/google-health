@@ -656,7 +656,7 @@ def model_vs_readers_orh(disease,
   cov2 = np.mean(off_diagonals)
 
   # msr = mean squared reader difference
-  msr = np.var(reader_foms - model_fom, ddof=1)
+  msr = np.var(np.array(reader_foms) - model_fom, ddof=1)
   se = np.sqrt((msr + max(num_readers * cov2, 0)) / num_readers)
   dof = (num_readers - 1) * ((msr + max(num_readers * cov2, 0)) / msr)**2
 

@@ -18,7 +18,7 @@ If you use any of these in your own research, please cite our technical report:
 ```
 
 
-##VQA-Rad: Balanced splits and exclusions from human evaluations
+## VQA-Rad: Balanced splits and exclusions from human evaluations
 
 File: **vqa_rad_balanced_split_and_human_eval_inclusions.tsv** 
 
@@ -35,7 +35,7 @@ Lister Hill National Center for Biomedical Communications, National Library of M
 hosted at https://osf.io/89kps/.
 
 
-##PAD-UFES-20: Train and test split
+## PAD-UFES-20: Train and test split
 
 File: **pad_ufes_20_split.tsv** 
 
