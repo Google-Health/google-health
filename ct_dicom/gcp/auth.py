@@ -89,7 +89,7 @@ def create_gcp_credentials() -> credentials.Credentials:
   except KeyError:
     use_gce_credentials = False
     logging.warning(_WARNING_MSG_TEMPLATE, _GCE_FLAG_NAME)
-  num_credentials_flags_set += use_gce_credentials
+  num_credentials_flags_set += use_gce_credentials  # pyrefly: ignore[unsupported-operation]
 
   if num_credentials_flags_set > 1:
     raise ValueError('At most one credential type can be set.')

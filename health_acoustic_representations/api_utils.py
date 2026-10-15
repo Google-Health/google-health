@@ -61,9 +61,10 @@ def initial_token_refresh(
     raise ValueError('Unexpected error: GCS Credentials are invalid')
   assert isinstance(gcs_creds.valid, datetime.datetime)  # for pytype
   time_until_expiry = (
-      gcs_creds.expiry - datetime.datetime.now()
+      gcs_creds.expiry - datetime.datetime.now()  # pyrefly: ignore[unsupported-operation]
   ).total_seconds() // 60
   print(
+      # pyrefly: ignore[missing-attribute]
       'Token will expire at'
       f' {gcs_creds.expiry.strftime("%Y-%m-%d %H:%M:%S")} UTC'
       f' ({time_until_expiry} minutes)'
@@ -89,7 +90,7 @@ def _get_prediction_instances(
 
 
 def make_prediction(
-    endpoint_path: Literal[RAW_AUDIO_ENDPOINT_PATH, GCS_URI_ENDPOINT_PATH],
+    endpoint_path: Literal[RAW_AUDIO_ENDPOINT_PATH, GCS_URI_ENDPOINT_PATH],  # pyrefly: ignore[not-a-type]
     instances: np.ndarray | list[str],
     gcs_bucket_name: str | None = None,
     gcs_creds: google.auth.credentials.Credentials | None = None,
@@ -149,20 +150,20 @@ def make_prediction(
       raise ValueError(
           'For endpoint `GCS_URI_ENDPOINT_PATH`, `gcs_creds` must be specified.'
       )
-    instances = _get_prediction_instances(
-        image_uris=instances,
+    instances = _get_prediction_instances(  # pyrefly: ignore[bad-assignment]
+        image_uris=instances,  # pyrefly: ignore[bad-argument-type]
         gcs_bucket_name=gcs_bucket_name,
         gcs_creds=gcs_creds,
     )
   else:
     raise ValueError(f'Endpoint {endpoint_path} is not recognized.')
-  response = client.predict(endpoint=endpoint_path, instances=instances)
+  response = client.predict(endpoint=endpoint_path, instances=instances)  # pyrefly: ignore[bad-argument-type]
   result = np.array(response.predictions)
   return result
 
 
 def make_prediction_with_exponential_backoff(
-    endpoint_path: Literal[RAW_AUDIO_ENDPOINT_PATH, GCS_URI_ENDPOINT_PATH],
+    endpoint_path: Literal[RAW_AUDIO_ENDPOINT_PATH, GCS_URI_ENDPOINT_PATH],  # pyrefly: ignore[not-a-type]
     instances: np.ndarray | list[str],
     max_retries: int = 10,
     base_delay_secs: float = 1,

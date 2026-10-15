@@ -165,7 +165,7 @@ def _map_by_dicom_attribute(
   if sort_values:
     for attribute_value, unsorted_dicoms in dicoms_by_attribute.items():
       dicoms_by_attribute[attribute_value] = (
-          _sort_series_by_image_position_patient(unsorted_dicoms)
+          _sort_series_by_image_position_patient(unsorted_dicoms)  # pyrefly: ignore[unsupported-operation]
       )
   return dicoms_by_attribute
 

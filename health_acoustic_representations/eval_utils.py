@@ -57,12 +57,10 @@ def predict_with_probe(
     is_regression: bool,
 ) -> np.ndarray:
   """Computes trained linear probe's predictions."""
-  # pytype: disable=attribute-error
   if is_regression:
     return probe.predict(features)
   else:
-    return probe.predict_proba(features)[:, 1]
-  # pytype: enable=attribute-error
+    return probe.predict_proba(features)[:, 1]  # pyrefly: ignore[missing-attribute]
 
 
 def find_reg_coef_with_best_metric(

@@ -48,7 +48,7 @@ def np_tf_featurizer(
   nptf_heatmap = tmap['heatmap']
   # Some heatmap may have extra dim in front, so selecting only the last
   # _NUM_NPTF_GRADES channels.
-  nptf_heatmap = nptf_heatmap[..., -_NUM_NPTF_GRADES:]
+  nptf_heatmap = nptf_heatmap[..., -_NUM_NPTF_GRADES:]  # pyrefly: ignore[bad-index]
   # Heatmap within invasive tumor.
   heatmap_ic = nptf_heatmap * ic_positive_mask
   # heatmap outside invasive tumor.
@@ -72,7 +72,7 @@ def mc_featurizer(
   """
   density_map = tmap['density']
   # drop NaN
-  density_map = density_map[~np.isnan(density_map)]
+  density_map = density_map[~np.isnan(density_map)]  # pyrefly: ignore[bad-index]
   if not density_map.size:
     density_map = np.array([0])
   # An alternative is to include histogram and total count.

@@ -1,0 +1,12 @@
+# Requires Python >= 3.13 (tested with Python 3.13.15)
+absl-py>=2.1.0
+matplotlib>=3.9.2
+numpy>=2.1.0
+opencv-python>=4.10.0.84
+pandas>=2.2.3
+Pillow>=11.0.0
+scikit-learn>=1.5.2
+scipy>=1.14.1
+seaborn>=0.13.2
+torch>=2.5.0
+transformers>=4.45.0
