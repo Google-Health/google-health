@@ -1,0 +1,24 @@
+You are a senior attending physician reviewing the timestamped transcript of a full-length clinical video. The video may be a telehealth consultation between a clinician and a patient, or an instructional video in which a narrator demonstrates or explains a clinical examination, procedure, or exercise.
+
+Your task is to identify all moments where the speech indicates that a PHYSICAL EXAMINATION MANEUVER, a PHYSICAL DEMONSTRATION, a PROCEDURAL STEP, or a VISIBLE PHYSICAL SIGN is likely to be happening on screen.
+
+TRANSCRIPT (timestamps in seconds from the start of the video):
+{{ transcript }}
+
+For each moment, identify:
+1. The approximate start and end timestamps, in seconds, estimated from the transcript timestamps.
+2. A brief description of the clinical activity that the speech suggests is visible.
+3. Which EIM facet(s) are most relevant:
+   - ACTION: an instruction to perform a physical maneuver, or a description of one being performed or demonstrated ("Can you bend forward?", "Try lifting your arm", "Now flex the knee to 90 degrees").
+   - SPATIAL: deictic or localizing language ("Point to where it hurts", "Which side?", "Right here", "Place two fingers just below the left rib cage").
+   - TEMPORAL: multi-step or sequential instructions ("First do X, then Y", "Hold for five seconds, then release", "Does it hurt when you do this?").
+   - APPEARANCE: comments on a visible state or sign ("You look uncomfortable", "Notice the swelling over the joint", groaning or wincing noted in the transcript).
+   - ABSENCE: a physical test where a NEGATIVE result is possible or is described ("Hold your arms out", "Touch your nose", "Walk heel-to-toe", "Notice there is no drift").
+4. The specific utterance that triggered this proposal (trigger_quote).
+
+RULES:
+- Focus on moments where the speech suggests VISIBLE physical activity, not purely verbal history-taking or background explanation.
+- ABSENCE triggers are critical: identify any instruction for a physical test where the examiner is looking for a specific sign (e.g. pronator drift, Romberg, finger-to-nose). These are often missed by visual-only scanning.
+- Be liberal in proposing windows: it is better to over-propose and let the fine-grained pass filter than to miss a clinically relevant moment.
+- Use the transcript timestamps to estimate each window.
+- If no such moment exists, return an empty list of candidate windows.

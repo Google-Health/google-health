@@ -1,0 +1,47 @@
+You are a senior attending physician creating a {{ num_options }}-option multiple choice question for a visual clinical perception benchmark.
+
+QUESTION STEM: {{ question }}
+GROUND TRUTH ANSWER: {{ correct_answer }}
+EIM FACET: {{ eim_facet }}
+TARGET ANCHOR: {{ target_anchor }}
+VISUAL EVIDENCE FROM CLIP: {{ evidence_basis }}
+CLIP DURATION: {{ clip_duration }}
+
+INSTRUCTIONS:
+1. Identify the clinical/anatomical domain of the question and answer (e.g., Hand/Wrist, Thoracic/Cardio, Gait/Knee, Abdominal/Pelvic, Neurological/Balance).
+2. Generate EXACTLY {{ num_distractors }} hard-negative distractors from the EXACT SAME clinical/anatomical domain.
+3. CLINICAL REALISM & LEARNER TRAPS: Each distractor MUST represent a realistic physical observation or misattribution that a medical student or resident might plausibly confuse with the ground truth during bedside inspection.
+4. LEXICAL EQUALIZATION: Every distractor MUST match the exact length (+/- 10% words) and grammatical structure of the ground truth answer: "{{ correct_answer }}".
+5. Every distractor MUST be mutually exclusive with the ground truth answer for this specific question target.
+6. Do NOT make distractors trivial or blatantly absurd. They must require fine-grained visual observation to rule out.
+
+CRITICAL ANTI-LEAKAGE RULES FOR SPATIAL FACET:
+If the EIM FACET is SPATIAL, you MUST follow these additional rules:
+- ALL {{ num_distractors }} distractors MUST be in the SAME BODY REGION as the ground truth (e.g., all on the anterior trunk, all on the face, all on the same limb). Do NOT include distractors from entirely different body regions.
+- MANDATORY LATERALITY DISTRACTORS: If the ground truth answer specifies a side (left or right), AT LEAST 2 of the {{ num_distractors }} distractors MUST describe the OPPOSITE SIDE (mirror the correct answer but swap left/right). This tests whether a model can perceive laterality. The remaining distractors should vary by sub-region, vertical zone, or nearby landmark ON EITHER SIDE.
+- Use MEDIUM-GRAINED spatial variation: vary by vertical zone, sub-region, laterality, or nearby landmark. Differences must be CLEARLY DISTINGUISHABLE IN VIDEO but not trivially eliminable by clinical reasoning alone.
+- The goal: a text-only model CANNOT eliminate distractors using clinical knowledge, but a video-watching model CAN clearly see which zone is correct.
+
+CRITICAL RULES FOR ABSENCE FACET:
+If the EIM FACET is ABSENCE, the question asks "Which finding is NOT observed?" The CORRECT ANSWER is something genuinely ABSENT from the clip. You MUST follow these rules:
+- ALL {{ num_distractors }} distractors MUST describe physical findings that ARE ACTUALLY VISIBLE/PRESENT in the clip based on the VISUAL EVIDENCE provided. They are WRONG answers to "which is NOT observed?" because they ARE observed.
+- Read the VISUAL EVIDENCE field carefully. It describes what IS visible (e.g., "labored breathing", "tremor in left hand", "erythema"). Your distractors should be drawn from these OBSERVED findings.
+- ABSOLUTELY DO NOT generate distractors that describe OTHER absent findings. If multiple options are absent, the question has multiple valid answers and becomes unanswerable.
+- NEVER use the word "absent", "not observed", or "not present" in any distractor text. Distractors describe things that ARE happening.
+- EXAMPLE of correct ABSENCE distractors:
+  Question: "Which respiratory sign is absent?"
+  GT (absent): "Accessory muscle use."
+  GOOD distractor: "Labored breathing." (IS observed → wrong answer)
+  GOOD distractor: "Nasal flaring." (IS observed → wrong answer)
+  BAD distractor: "Pursed lip breathing." (also absent → ambiguous!)
+- LEXICAL EQUALIZATION still applies: match word count and structure across all options, including the GT.
+
+CRITICAL RULES FOR TEMPORAL FACET:
+If the EIM FACET is TEMPORAL and the correct answer is a TIMESTAMP RANGE (e.g., "Between 0:12 and 0:14"):
+- ALL {{ num_distractors }} distractors MUST be non-overlapping timestamp ranges from the same clip duration.
+- STRICT CLIP DURATION BOUNDARY: The total clip duration is {{ clip_duration }}. ALL timestamp distractors (start and end) MUST be <= {{ clip_duration }} and strictly within 00:00 to {{ clip_duration }}.
+- Each distractor MUST have NO OVERLAP with the ground truth range. Use a minimum gap of 2 seconds.
+- Distribute distractors evenly across the clip duration. All ranges should use the same format and width as the ground truth.
+- If the correct answer is NOT a timestamp, generate standard co-hyponym distractors as usual.
+
+Output all {{ num_distractors }} distractors in JSON format using the provided schema.

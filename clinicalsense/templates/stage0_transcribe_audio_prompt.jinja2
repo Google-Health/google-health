@@ -1,0 +1,12 @@
+You are transcribing the audio track of a clinical video. The video may be a consultation between a clinician and a patient or an instructional video in which a narrator demonstrates or explains a clinical examination, procedure, or exercise.
+
+Transcribe all intelligible speech as a chronological list of segments. For each segment, give:
+- start_sec and end_sec: when the segment starts and ends, in seconds from the beginning of the audio (to the nearest 0.1 seconds).
+- speaker: a short speaker label if it can be inferred (e.g. "Doctor", "Patient", "Narrator"); otherwise an empty string.
+- text: the words spoken, verbatim.
+
+RULES:
+- Keep each segment short: one sentence or utterance, at most about 15 seconds.
+- Do not summarize, translate, or paraphrase.
+- Do not describe music, silence, or background noise.
+- If there is no intelligible speech, return an empty list of segments.

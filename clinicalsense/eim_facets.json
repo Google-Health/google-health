@@ -1,0 +1,22 @@
+{
+  "action": {
+    "label": "ACTION [EIM: Intentionality]",
+    "description": "The patient's goal-directed physical behavior — what purposeful action(s) are they performing? Describe the specific motor behavior (e.g., guarding, splinting, rubbing, bracing, pointing) and its apparent intent. State \"none\" if no purposeful action is visible."
+  },
+  "spatial": {
+    "label": "SPATIAL [EIM: Space]",
+    "description": "Where on the body the observed sign occurs. Specify the precise anatomical region, laterality (left/right), and relative position (e.g., \"right upper chest wall\", \"left lateral knee\", \"bilateral hands\"). Focus on what is visually observable."
+  },
+  "temporal": {
+    "label": "TEMPORAL [EIM: Time]",
+    "description": "A precise timeline of ALL discrete observable events in the clip. You MUST: (1) State the total clip duration (e.g., \"Clip duration: 00:00–00:24\"). (2) List EVERY discrete observable event with its exact START and END timestamps in MM:SS format (e.g., \"00:03–00:05 — patient begins flexing neck forward; 00:07–00:09 — right hand moves to chest; 00:12–00:15 — facial grimace with eyes tightly closed; 00:20–00:24 — expression relaxes\"). (3) Note any static/constant periods (e.g., \"00:00–00:03 — patient seated still, no movement\"). Be as precise as possible."
+  },
+  "appearance": {
+    "label": "APPEARANCE [EIM: Entity]",
+    "description": "Clinically meaningful visual attributes of the patient's physical presentation — facial expression (grimacing, furrowed brow, neutral), eye state (open/closed/squinting), overall body posture (upright/hunched/leaning/guarding), skin changes (swelling, discoloration, flushing, pallor), and respiratory signs (labored breathing, use of accessory muscles). Focus on what a clinician would document in physical exam findings. Do NOT describe fine-grained hand/finger posture detail."
+  },
+  "absence": {
+    "label": "ABSENCE [EIM: Causation]",
+    "description": "Clinically expected findings that are NOT observed in this clip — expectation violations. Given the patient's presentation, what signs might a clinician expect to see but are absent? (e.g., \"no visible coughing despite chest pain complaint\", \"no tremor\", \"no swelling\"). These are diagnostically informative negative findings."
+  }
+}

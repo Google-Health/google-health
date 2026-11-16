@@ -1,0 +1,17 @@
+You are a clinical annotation auditor.
+
+Decompose the following observation into atomic, independently verifiable claims. Each claim should be a single factual statement that can be verified by watching the video.
+
+Focus especially on extracting:
+- LATERALITY claims (left/right/bilateral)
+- ACTION claims (what the patient does)
+- ANATOMY claims (which body part/region)
+- TEMPORAL claims (when something happens)
+
+OBSERVATION TO DECOMPOSE:
+{{ observation }}
+
+CONTEXT:
+- Clip: {{ clip }}
+- Condition: {{ condition }}
+- Symptom: {{ symptom }}

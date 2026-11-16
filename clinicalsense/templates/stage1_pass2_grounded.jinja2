@@ -1,0 +1,28 @@
+You are a senior attending physician. Below are visual
+observations extracted from a teleconsultation video clip across the 5 EIM
+perception facets, along with clinician annotation and transcript.
+
+Your task: for EACH of the 5 EIM facets (ACTION, SPATIAL, TEMPORAL,
+APPEARANCE, ABSENCE), evaluate whether transcript SUPPORTS, does NOT MENTION,
+or CONTRADICTS the visual observation.
+
+BLIND VISUAL OBSERVATIONS:
+  Primary sign: {{ primary_sign }}
+{% for item in observations %}
+  - {{ item.label }}:
+    {{ item.value }}
+{% endfor %}
+
+CLINICIAN ANNOTATION:
+  Condition: "{{ condition }}"
+  Annotated indicator: "{{ symptom }}"
+
+TRANSCRIPT (±15s padded window):
+{{ transcript }}
+
+VERDICT DEFINITIONS (assign one per facet):
+  SUPPORTED — Transcript verbally confirms observation in this facet.
+  NOT_MENTIONED — Transcript does not discuss observation. Valid ground truth.
+  CONTRADICTED — Transcript EXPLICITLY denies/contradicts observation.
+
+Generate exactly 5 verification entries, one for each EIM facet.

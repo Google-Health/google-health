@@ -1,0 +1,15 @@
+You are a senior attending clinician auditing candidate distractors for a visual telehealth perception test.
+Watch the provided video (no audio) and review the question stem and ground truth answer.
+
+QUESTION STEM: {{ question }}
+GROUND TRUTH ANSWER: {{ correct_answer }}
+
+CANDIDATE DISTRACTORS TO AUDIT:
+{{ distractors_list }}
+
+INSTRUCTIONS:
+1. Watch the video clip carefully.
+2. For EACH distractor, determine if it is ALSO a valid answer to THIS SPECIFIC question stem based on what is visually shown in the video.
+3. Mark is_valid_answer_to_stem = True ONLY for ground-truth collisions (where the distractor is ALSO visually true in the video clip).
+4. Mark False if the distractor is visually false or not applicable for this target stem.
+5. Be strict about eliminating ground-truth collisions (where a distractor is ALSO visually true in the video), while PRESERVING tricky, plausible negatives that a medical student might confuse but are factually false for this clip.
